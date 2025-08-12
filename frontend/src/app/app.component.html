@@ -1,0 +1,48 @@
+<div class="auth">
+  <ng-container *ngIf="!authed(); else authedBlock">
+    <input placeholder="email" [(ngModel)]="email" />
+    <input placeholder="password" type="password" [(ngModel)]="password" />
+    <button (click)="doRegister()">Register</button>
+    <button (click)="doLogin()">Login</button>
+  </ng-container>
+
+  <ng-template #authedBlock>
+    <span class="hello">Hello, {{ userEmail }}</span>
+    <button (click)="doLogout()">Logout</button>
+  </ng-template>
+</div>
+
+<div class="toolbar">
+  <select [(ngModel)]="docId" (ngModelChange)="onDocChange($event)">
+    <option value="" disabled [selected]="!docId">Select a doc</option>
+    <option *ngFor="let d of docs" [value]="d.id">
+      {{ d.title }} — v{{ d.version }} — {{ d.updatedAt | date:'short' }}
+    </option>
+  </select>
+
+  <button (click)="refreshDocs()" [disabled]="loading">
+    {{ loading ? 'Loading…' : 'Refresh' }}
+  </button>
+
+  <input class="title" placeholder="New doc title" [(ngModel)]="newTitle" />
+  <button (click)="createDoc()" [disabled]="creating || !newTitle.trim()">
+    {{ creating ? 'Creating…' : 'Create' }}
+  </button>
+
+  <span class="status">WS: {{ status }}</span>
+</div>
+
+<div class="editor-wrap">
+  <textarea
+    #ta
+    class="editor"
+    [(ngModel)]="text"
+    (input)="onInput()"
+    (select)="onSelect()"
+    (keyup)="onSelect()"
+    (click)="onSelect()"
+    placeholder="Start typing…"
+  ></textarea>
+
+  <div class="cursor-overlay"></div>
+</div>
