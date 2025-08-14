@@ -143,6 +143,7 @@ export class AppComponent implements OnInit, AfterViewInit {
         this.creating = false;
         this.newTitle = '';
         this.docs = [d, ...this.docs];
+        
         // Auto-select & auto-connect newly created doc
         this.docId = d.id;
         this.onDocChange(this.docId);
@@ -156,6 +157,12 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.docId = nextId;
     if (!this.docId) return;
 
+    // Reset document FIRST to ensure clean state
+    if (this.sync.getLastDocId() !== nextId) {
+      this.sync.resetDocument();
+      this.text = ''; // Clear UI immediately
+    }
+
     // Load snapshot THEN open WS
     this.api.getBlob(this.docId).subscribe({
       next: async (blob) => {
@@ -164,12 +171,20 @@ export class AppComponent implements OnInit, AfterViewInit {
           if (buf.length > 0) {
             Y.applyUpdate(this.sync.ydoc, buf); // pure Yjs bytes
           }
+          
+          // Update the local text state to reflect the new document
+          this.text = this.sync.ytext.toString();
         } catch (e) {
           console.warn('Snapshot apply failed; continuing without it', e);
+          this.text = '';
         }
         this.sync.connect(this.docId);
       },
-      error: () => this.sync.connect(this.docId)
+      error: () => {
+        // Start fresh on error
+        this.text = '';
+        this.sync.connect(this.docId);
+      }
     });
   }
 

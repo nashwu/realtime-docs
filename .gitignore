@@ -1,0 +1,59 @@
+# Sensitive Infrastructure Files
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+*.tfplan
+
+# AWS Credentials & Sensitive Files
+aws-credentials
+*.pem
+*.key
+*.crt
+load-balancer-trust-policy.json
+iam_policy.json
+additional-lb-policy.json
+aws-load-balancer-controller-*.yaml
+
+# But allow example files
+!*.example
+!*-trust-policy.json.example
+!aws-load-balancer-controller-*.yaml.example
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.production
+secrets.yaml
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Docker
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Temporary files
+*.tmp
+*.temp

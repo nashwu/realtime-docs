@@ -1,0 +1,150 @@
+# Default values for realtime-docs
+# This is a YAML-formatted file.
+
+replicaCount:
+  backend: 2
+  frontend: 2
+
+image:
+  backend:
+    repository: YOUR_AWS_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com/realtime-docs-backend
+    pullPolicy: Always
+    tag: "latest"
+  frontend:
+    repository: YOUR_AWS_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com/realtime-docs-frontend
+    pullPolicy: Always
+    tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  backend:
+    type: ClusterIP
+    port: 8080
+  frontend:
+    type: ClusterIP
+    port: 80
+
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    alb.ingress.kubernetes.io/subnets: YOUR_PUBLIC_SUBNET_IDS
+    # WebSocket support for ALB
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=300
+    # Health check settings to prevent connection drops
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "30"
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"
+  hosts:
+    - paths:
+        - path: /api
+          pathType: Prefix
+          service: backend
+        - path: /ws
+          pathType: Prefix
+          service: backend
+        - path: /
+          pathType: Prefix
+          service: frontend
+  tls: []
+
+resources:
+  backend:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  frontend:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+config:
+  app:
+    env: production
+    httpAddr: ":8080"
+    corsAllow: "https://your-domain.com"
+  database:
+    maxConn: 10
+    # For production, use AWS RDS endpoint
+    host: postgres-service
+    port: 5432
+    name: docs
+    user: postgres
+  redis:
+    # For production, use AWS ElastiCache endpoint
+    addr: redis-service:6379
+    db: 0
+
+secrets:
+  jwtSecret: "change-me-in-production"
+  dbPassword: "change-me-in-production"
+
+# Database configuration (for development)
+postgresql:
+  enabled: true
+  auth:
+    postgresPassword: "secret"
+    database: "docs"
+  primary:
+    persistence:
+      enabled: true
+      size: 5Gi
+
+redis:
+  enabled: true
+  auth:
+    enabled: false
+
+resources:
+  backend:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  frontend:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# External services configuration
+externalDatabase:
+  host: "YOUR_RDS_ENDPOINT"
+  port: 5432
+  database: "docs"
+  username: "postgres"
+  password: "CHANGE_ME_IN_PRODUCTION"
+
+externalRedis:
+  host: "YOUR_REDIS_ENDPOINT"
+  port: 6379

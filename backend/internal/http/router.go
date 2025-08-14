@@ -24,8 +24,14 @@ func NewRouter(cfg app.Config, logger *slog.Logger, hub *ws.Hub, db *store.Postg
 	mux := http.NewServeMux()
 
 	// Health / readiness / metrics
-	mux.Handle("/healthz", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(200) }))
-	mux.Handle("/readyz",  http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(200) }))
+	healthHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { 
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		w.Write([]byte(`{"status":"ok","timestamp":"` + time.Now().Format(time.RFC3339) + `"}`))
+	})
+	mux.Handle("/health", healthHandler)
+	mux.Handle("/healthz", healthHandler)
+	mux.Handle("/readyz",  healthHandler)
 	mux.Handle("/metrics", metrics.Handler())
 
 	// WebSocket endpoint

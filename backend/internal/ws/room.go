@@ -3,7 +3,7 @@ package ws
 import "sync"
 
 type Room struct {
-	mu ync.RWMutex
+	mu sync.RWMutex
 	clients map[*Conn]struct{} // active connections in this room
 }
 

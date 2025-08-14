@@ -36,9 +36,9 @@ export class WSSyncService {
   private ws?: WebSocket;
   private lastDocId?: string;
 
-  readonly ydoc = new Y.Doc();
-  readonly ytext = this.ydoc.getText('t');
-  readonly awareness = new Awareness(this.ydoc);
+  ydoc = new Y.Doc();
+  ytext = this.ydoc.getText('t');
+  awareness = new Awareness(this.ydoc);
 
   private textListeners: TextListener[] = [];
   private statusListeners: StatusListener[] = [];
@@ -46,12 +46,20 @@ export class WSSyncService {
 
   private applyingRemote = false;
   private reconnectTimer?: any;
-  private readonly reconnectDelay = 1500;
+  private readonly reconnectDelay = 2000; // Increased from 1500ms
+  private maxReconnectAttempts = 5;
+  private reconnectAttempts = 0;
+  private connectionState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' = 'disconnected';
 
   private name = `user-${Math.floor(Math.random() * 1000)}`;
   private color = pickColor();
 
   constructor() {
+    this.setupDocumentEvents();
+  }
+
+  // Setup Y.js document event handlers
+  private setupDocumentEvents() {
     // Broadcast local Yjs ops
     this.ydoc.on('update', (update: Uint8Array, origin: unknown) => {
       if (origin === 'local') this.send(MSG_UPDATE, update);
@@ -76,21 +84,57 @@ export class WSSyncService {
     } as AwarenessState);
   }
 
+  // Reset to a fresh document state
+  resetDocument(): void {
+    // Close existing websocket if any
+    this.ws?.close();
+    
+    // Destroy the old document
+    this.ydoc.destroy();
+    
+    // Create a new fresh document
+    this.ydoc = new Y.Doc();
+    this.ytext = this.ydoc.getText('t');
+    this.awareness = new Awareness(this.ydoc);
+    
+    // Setup event handlers for the new document
+    this.setupDocumentEvents();
+  }
+
+  // Get the last connected document ID
+  getLastDocId(): string | undefined {
+    return this.lastDocId;
+  }
+
   // public API used by your component
   onText(cb: TextListener) { this.textListeners.push(cb); }
   onStatus(cb: StatusListener) { this.statusListeners.push(cb); }
   onPresence(cb: PresenceListener) { this.presenceListeners.push(cb); }
 
   connect(docId: string): void {
+    // Don't auto-reset here since component handles it now
     this.lastDocId = docId;
+    
+    // Don't connect if already connecting to the same document
+    if (this.connectionState === 'connecting') return;
+    
+    this.connectionState = 'connecting';
     this.emitStatus('connecting');
 
     try {
       this.ws?.close();
-      this.ws = new WebSocket(`ws://localhost:8080/ws?docId=${encodeURIComponent(docId)}`);
+      
+      // Determine WebSocket URL based on environment
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      const wsUrl = `${protocol}//${host}/ws?docId=${encodeURIComponent(docId)}`;
+      
+      this.ws = new WebSocket(wsUrl);
       this.ws.binaryType = 'arraybuffer';
 
       this.ws.onopen = () => {
+        this.connectionState = 'connected';
+        this.reconnectAttempts = 0; // Reset on successful connection
         this.emitStatus('connected');
         // Ask peers for full state, and announce my current awareness
         this.send(MSG_SYNC_REQ, new Uint8Array(0));
@@ -98,8 +142,21 @@ export class WSSyncService {
         this.send(MSG_AWARENESS, u);
       };
 
-      this.ws.onclose = () => { this.emitStatus('reconnecting'); this.scheduleReconnect(); };
-      this.ws.onerror = () => this.emitStatus('error');
+      this.ws.onclose = (event) => { 
+        if (this.connectionState === 'connected') {
+          this.connectionState = 'reconnecting';
+          this.emitStatus('reconnecting'); 
+          this.scheduleReconnect(); 
+        }
+      };
+      
+      this.ws.onerror = () => {
+        console.warn('WebSocket error occurred');
+        if (this.connectionState === 'connecting') {
+          this.emitStatus('error');
+          this.scheduleReconnect();
+        }
+      };
 
       this.ws.onmessage = (ev) => {
         const bytes = new Uint8Array(ev.data as ArrayBuffer);
@@ -183,10 +240,24 @@ export class WSSyncService {
 
   private scheduleReconnect() {
     if (this.reconnectTimer || !this.lastDocId) return;
+    
+    // Stop trying after max attempts
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this.emitStatus('error');
+      console.warn('Max reconnection attempts reached');
+      return;
+    }
+    
+    this.reconnectAttempts++;
+    
+    // Exponential backoff: 2s, 4s, 8s, 16s, 32s
+    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000);
+    
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = undefined;
+      console.log(`Reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
       this.connect(this.lastDocId!);
-    }, this.reconnectDelay);
+    }, delay);
   }
 
   private snapshotTimer: any = null;

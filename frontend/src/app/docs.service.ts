@@ -10,7 +10,7 @@ export type DocItem = {
 
 @Injectable({ providedIn: 'root' })
 export class DocsService {
-  private base = 'http://localhost:8080'; // API root
+  private base = ''; // Use relative URLs to work with ALB routing
 
   constructor(private http: HttpClient) {}
 

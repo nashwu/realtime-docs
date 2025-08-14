@@ -1,0 +1,128 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: realtime-docs
+  labels:
+    name: realtime-docs
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: realtime-docs
+type: Opaque
+data:
+  # Base64 encoded values - replace with actual values
+  jwt-secret: ZGV2LXNlY3JldC1jaGFuZ2U=  # dev-secret-change
+  db-password: c2VjcmV0  # secret
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: realtime-docs
+data:
+  APP_ENV: "production"
+  HTTP_ADDR: ":8080"
+  PG_MAX_CONN: "10"
+  REDIS_DB: "0"
+  CORS_ALLOW: "https://your-domain.com"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: realtime-docs
+spec:
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: realtime-docs
+  labels:
+    app: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: your-registry/realtime-docs-backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: APP_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: APP_ENV
+        - name: HTTP_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: HTTP_ADDR
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: jwt-secret
+        - name: PG_URL
+          value: "postgres://postgres:$(DB_PASSWORD)@postgres-service:5432/docs?sslmode=disable"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: db-password
+        - name: PG_MAX_CONN
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: PG_MAX_CONN
+        - name: REDIS_ADDR
+          value: "redis-service:6379"
+        - name: REDIS_DB
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: REDIS_DB
+        - name: CORS_ALLOW
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: CORS_ALLOW
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      restartPolicy: Always

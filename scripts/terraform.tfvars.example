@@ -1,0 +1,24 @@
+# Example Terraform variables file
+# Copy this to terraform.tfvars and update with your actual values
+
+aws_region = "us-west-1"  # or your preferred region
+project_name = "realtime-docs"
+environment = "dev"
+
+# Update these values as needed
+db_password = "YOUR_SECURE_DB_PASSWORD"
+domain_name = "your-domain.com"
+certificate_arn = ""
+
+# Node configuration
+node_instance_type = "t3.medium"
+node_desired_size = 2
+node_max_size = 4
+node_min_size = 1
+
+# Database configuration
+db_instance_class = "db.t3.micro"
+db_allocated_storage = 20
+
+# Redis configuration
+redis_node_type = "cache.t3.micro"

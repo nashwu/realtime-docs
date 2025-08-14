@@ -6,7 +6,7 @@ type TokenResp = { token: string; user: { id: string; email: string } };
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private base = 'http://localhost:8080';
+  private base = ''; // Use relative URLs to work with ALB routing
   constructor(private http: HttpClient) {}
 
   getToken(): string | null { return localStorage.getItem(KEY); }
