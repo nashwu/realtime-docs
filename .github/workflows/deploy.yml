@@ -101,12 +101,20 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
     - name: Update kube config
-      run: aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
+      run: |
+        aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
+        kubectl config current-context
+        kubectl auth can-i get pods --namespace=realtime-docs || echo "Warning: Limited permissions"
 
     - name: Install Helm
       uses: azure/setup-helm@v3
@@ -118,13 +126,23 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
+        # Create namespace if it doesn't exist
+        kubectl create namespace realtime-docs --dry-run=client -o yaml | kubectl apply -f -
+        
+        # Create or update Kubernetes secrets
+        kubectl create secret generic realtime-docs-config \
+          --from-literal=jwt-secret="${{ secrets.JWT_SECRET }}" \
+          --from-literal=database-url="${{ secrets.DATABASE_URL }}" \
+          --from-literal=redis-addr="realtime-docs-redis.hswjoc.cache.amazonaws.com:6379" \
+          --namespace=realtime-docs \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        # Deploy with Helm
         helm upgrade --install realtime-docs ./helm/realtime-docs \
           --namespace realtime-docs \
-          --create-namespace \
           --set image.backend.repository=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND \
           --set image.backend.tag=$IMAGE_TAG \
           --set image.frontend.repository=$ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND \
           --set image.frontend.tag=$IMAGE_TAG \
-          --set secrets.jwtSecret="${{ secrets.JWT_SECRET }}" \
-          --set secrets.dbPassword="${{ secrets.DB_PASSWORD }}" \
-          --wait
+          --wait \
+          --timeout=10m
