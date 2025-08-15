@@ -129,20 +129,18 @@ jobs:
         # Create namespace if it doesn't exist
         kubectl create namespace realtime-docs --dry-run=client -o yaml | kubectl apply -f -
         
-        # Create or update Kubernetes secrets
-        kubectl create secret generic realtime-docs-config \
-          --from-literal=jwt-secret="${{ secrets.JWT_SECRET }}" \
-          --from-literal=database-url="${{ secrets.DATABASE_URL }}" \
-          --from-literal=redis-addr="realtime-docs-redis.hswjoc.cache.amazonaws.com:6379" \
-          --namespace=realtime-docs \
-          --dry-run=client -o yaml | kubectl apply -f -
+        # Delete any existing manually created secrets to avoid conflicts
+        kubectl delete secret realtime-docs-config --namespace=realtime-docs --ignore-not-found=true
         
-        # Deploy with Helm
+        # Deploy with Helm (Helm will manage the secrets)
         helm upgrade --install realtime-docs ./helm/realtime-docs \
           --namespace realtime-docs \
           --set image.backend.repository=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND \
           --set image.backend.tag=$IMAGE_TAG \
           --set image.frontend.repository=$ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND \
           --set image.frontend.tag=$IMAGE_TAG \
+          --set secrets.jwtSecret="${{ secrets.JWT_SECRET }}" \
+          --set secrets.databaseUrl="${{ secrets.DATABASE_URL }}" \
+          --set secrets.redisAddr="realtime-docs-redis.hswjoc.cache.amazonaws.com:6379" \
           --wait \
           --timeout=10m
