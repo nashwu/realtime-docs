@@ -34,7 +34,7 @@ ingress:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
-    alb.ingress.kubernetes.io/subnets: YOUR_PUBLIC_SUBNET_IDS
+    alb.ingress.kubernetes.io/subnets: subnet-05fe633770c078b29,subnet-0d7f82b7bd615af7e
     # WebSocket support for ALB
     alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=300
     # Health check settings to prevent connection drops

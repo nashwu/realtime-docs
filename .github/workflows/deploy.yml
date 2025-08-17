@@ -141,6 +141,10 @@ jobs:
           --set image.frontend.tag=$IMAGE_TAG \
           --set secrets.jwtSecret="${{ secrets.JWT_SECRET }}" \
           --set secrets.databaseUrl="${{ secrets.DATABASE_URL }}" \
-          --set secrets.redisAddr="realtime-docs-redis.hswjoc.cache.amazonaws.com:6379" \
+          --set secrets.redisAddr="realtime-docs-redis.aa18gk.ng.0001.usw1.cache.amazonaws.com:6379" \
           --wait \
-          --timeout=10m
+          --timeout=15m
+        
+        # Check deployment status
+        kubectl get pods -n realtime-docs
+        kubectl get events -n realtime-docs --sort-by='.lastTimestamp' | tail -10
