@@ -9,6 +9,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+
 	"github.com/joho/godotenv"
 
 	app "realtime-docs/internal/app"
@@ -23,6 +26,12 @@ func main() {
 
 	cfg := app.LoadConfig()
 	logger := app.NewLogger(cfg.Env)
+
+	// Register standard Prometheus collectors (Go runtime + process) so that
+	// /metrics exposes baseline runtime/process metrics in addition to any
+	// custom metrics the app may add.
+	prometheus.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	prometheus.MustRegister(collectors.NewGoCollector())
 
 	// Cancel on SIGINT/SIGTERM
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

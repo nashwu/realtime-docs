@@ -268,7 +268,7 @@ export class WSSyncService {
       const full = Y.encodeStateAsUpdate(this.ydoc);
       // reuse the existing send() to prepend the 1-byte type (3)
       this.send(MSG_SYNC_RES, full);
-    }, 300); // debounce window; tweak as you like
+  }, 250); // debounce window aligned with server-side 250ms saves
   }
 
 }

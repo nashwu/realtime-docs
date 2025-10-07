@@ -3,6 +3,7 @@ package ratelimit
 import (
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -28,6 +29,12 @@ func New(max int, per time.Duration) *Limiter {
 // Middleware enforces the rate limit before calling the next handler
 func (r *Limiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		// Bypass rate limiting for WebSocket upgrade requests so long-lived WS
+		// connections (handshakes) aren't blocked by the token-bucket for HTTP.
+		if strings.ToLower(req.Header.Get("Upgrade")) == "websocket" {
+			next.ServeHTTP(w, req)
+			return
+		}
 		ip, _, _ := net.SplitHostPort(req.RemoteAddr)
 
 		r.mu.Lock()
